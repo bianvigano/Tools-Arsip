@@ -6,6 +6,8 @@ serta sistem plugin notifikasi (Telegram/Email/custom).
 
 Tujuan dari program ini untuk dipermudah dalam menggunakan `zip/tar/tgz/7z` dan lebih interaktif dan mudah digunakan
 
+Catatan : ini masih menggunakan `zip/tar/tgz/7z` dari pihak lain jadi murni program ini supaya mudah saja :D
+
 ---
 
 ## 📌 Requirements

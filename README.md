@@ -6,16 +6,18 @@ Mendukung **backup otomatis, enkripsi, split, exclude, upload, dan notifikasi**,
 ---
 
 ## 🚀 Fitur Utama
-
-✅ UI interaktif (navigasi file, exclude, preview)
-✅ Mode headless (otomatisasi/cron)
-✅ Format arsip: `zip`, `tar`, `tgz`, `7z`
-✅ Enkripsi: `ZIP AES-256`, `GPG symmetric (AES256)`
-✅ Split file otomatis (misal: per 200MB)
-✅ Exclude file/pola (langsung atau dari file)
-✅ Upload ke: `rclone`, `AWS S3`, `FTP/SFTP`, `SCP`
-✅ Notifikasi via plugin: `Telegram`, `Email`, atau kustom
-✅ Output opsional: SHA256 checksum & summary `.json`
+  
+| ✅ Fitur                     | Deskripsi                                              |
+|-----------------------------|--------------------------------------------------------|
+| UI interaktif               | Navigasi file, exclude, preview                        |
+| Mode headless               | Untuk cron atau otomatisasi script                     |
+| Format arsip                | `zip`, `tar`, `tgz`, `7z`                              |
+| Enkripsi                    | `ZIP AES-256`, `GPG symmetric (AES256)`                |
+| Split file                  | Otomatis, misal per 200MB                              |
+| Exclude file/pola           | Langsung (--exclude) atau via file                     |
+| Upload                     | `rclone`, `AWS S3`, `FTP/SFTP`, `SCP`                 |
+| Notifikasi plugin           | `Telegram`, `Email`, atau plugin eksternal            |
+| Output opsional             | Checksum `.sha256`, summary `.json`                   |
 
 ---
 

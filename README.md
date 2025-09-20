@@ -4,6 +4,8 @@ Mendukung `zip/tar/tgz/7z`,
 enkripsi (ZIP AES‑256 / GPG), split otomatis, exclude, upload (`rclone`, `aws s3`, `lftp`, `scp`), 
 serta sistem plugin notifikasi (Telegram/Email/custom).
 
+Tujuan dari program ini untuk dipermudah dalam menggunakan `zip/tar/tgz/7z` dan lebih interaktif dan mudah digunakan
+
 ---
 
 ## 📌 Requirements

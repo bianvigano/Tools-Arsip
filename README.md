@@ -1,7 +1,15 @@
-# 🛡️ Backup & Upload Tool (Python)
 
-Backup & Upload Tool murni Python dengan fitur interaktif (TUI) dan mode headless.
-Mendukung format arsip zip, tar, tgz, 7z, enkripsi (ZIP AES / GPG), split otomatis, exclude file/folder, upload via rclone, aws, lftp, scp, serta sistem notifikasi plugin seperti Telegram dan Email.
+Tool backup & Arsip dengan UI interaktif (TUI) & mode headless. 
+Mendukung `zip/tar/tgz/7z`, 
+enkripsi (ZIP AES‑256 / GPG), split otomatis, exclude, upload (`rclone`, `aws s3`, `lftp`, `scp`), 
+serta sistem plugin notifikasi (Telegram/Email/custom).
+
+---
+
+## 📌 Requirements
+
+* Python 3.7+
+* CLI tools: `zip`, `7z`, `tar`, `gzip`, `gpg`, `rclone`, `aws`, `lftp`, `scp` (sesuai opsi)
 
 ---
 
@@ -273,13 +281,6 @@ plugins.d/
 * File checksum SHA256: `<arsip>.sha256`
 * Ringkasan backup: `*.summary.json`
   Berisi: waktu backup, ukuran, file output, dll.
-
----
-
-## 📌 Requirements
-
-* Python 3.7+
-* CLI tools: `zip`, `7z`, `tar`, `gzip`, `gpg`, `rclone`, `aws`, `lftp`, `scp` (sesuai opsi)
 
 ---
 

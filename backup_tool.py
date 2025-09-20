@@ -953,41 +953,139 @@ def headless_make_archive():
 
 # ================== Argparse ==================
 def build_parser() -> argparse.ArgumentParser:
+    class _Formatter(argparse.ArgumentDefaultsHelpFormatter,
+                     argparse.RawDescriptionHelpFormatter):
+        pass
+
+    EPILOG = r"""
+ENV bawaan untuk plugin (di-set saat plugin dipanggil):
+  EVENT, STATUS, SUMMARY_FILE, ARCHIVE_PATH, FILES (daftar dipisah baris),
+  UPLOAD_TARGET, LOG_FILE, NOTIFY_CONFIG, OUTPUT_DIR, BASE_NAME, TOTAL_SIZE
+
+Contoh:
+  # UI interaktif, mulai dari /data/projects
+  %(prog)s --start /data/projects
+
+  # Headless (tanpa UI), arsip TGZ, split 200 MB, nama custom
+  %(prog)s --no-ui --source /srv/data --dest /backups --format tgz --split 200m --name proj-archive
+
+  # ZIP AES-256 via 7z (lebih aman dari ZipCrypto)
+  %(prog)s --no-ui --source /srv/app --dest /backups --format zip --zip-aes --password "Rahasia123"
+
+  # TGZ + GPG symmetric (AES256)
+  %(prog)s --no-ui --source /srv/data --dest /backups --format tgz --gpg-encrypt
+
+  # Exclude pola (ulang argumen atau daftar koma)
+  %(prog)s --exclude "*/node_modules/*" --exclude "*.log,.git/*"
+
+  # Exclude dari file (satu pola per baris; dukung wildcard * ?)
+  # contoh exclude-list.txt:
+  #   *.log
+  #   .tmp/
+  #   */node_modules/*
+  #   .git/
+  #   .cache/
+  %(prog)s --exclude-from ./exclude-list.txt
+
+  # Upload ke rclone remote dan hapus lokal setelah sukses
+  %(prog)s --no-ui --source /srv/data --dest /backups --format tgz \
+           --upload gdrive:Backups --upload-tool rclone --after-upload-rm \
+           --notify telegram,email
+
+Catatan keamanan:
+  • --password menaruh password di argumen proses (bisa terlihat di 'ps' atau history).
+    Gunakan --zip-encrypt/interactive prompt bila memungkinkan.
+"""
+
     p = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
         description="Interactive/Headless Backup & Upload Tool (Python)",
-        formatter_class=argparse.RawTextHelpFormatter
+        formatter_class=_Formatter,
+        epilog=EPILOG
     )
-    p.add_argument('-s','--start', dest='START_DIR')
-    p.add_argument('--dest', dest='DEST_DIR')
-    p.add_argument('--format', dest='ARCHIVE_FORMAT', choices=['zip','tar','tgz','7z','tar.gz'])
-    p.add_argument('--zip-aes', dest='ZIP_AES', action='store_true')
-    p.add_argument('--gpg-encrypt', dest='USE_GPG', action='store_true')
-    p.add_argument('--split', dest='SPLIT_SIZE')
-    p.add_argument('--name', dest='OUT_NAME')
-    p.add_argument('--zip-encrypt', dest='ZIP_ENCRYPT', action='store_true')
-    p.add_argument('--password', dest='ZIP_PASSWORD')
-    p.add_argument('--keep-after-split', dest='KEEP_AFTER_SPLIT', action='store_true')
-    p.add_argument('--rm-after-split', dest='RM_AFTER_SPLIT', action='store_true')
-    p.add_argument('--exclude', dest='EXCLUDES', action='append', help='comma-separated patterns or repeat')
-    p.add_argument('--exclude-from', dest='EXCLUDE_FILE')
-    # Headless & Upload
-    p.add_argument('--no-ui', dest='NO_UI', action='store_true')
-    p.add_argument('--source', dest='SOURCES', action='append')
-    p.add_argument('--upload', dest='UPLOAD_TARGET')
-    p.add_argument('--upload-tool', dest='UPLOAD_TOOL', choices=['auto','rclone','aws','lftp','scp'])
-    p.add_argument('--after-upload-rm', dest='AFTER_UPLOAD_RM', action='store_true')
-    p.add_argument('--upload-retry', dest='UPLOAD_RETRY')
-    # Dry-run, Config, Plugin
-    p.add_argument('--dry-run', dest='DRY_RUN', action='store_true')
-    p.add_argument('--config', dest='CONFIG_FILE')
-    p.add_argument('--plugins-dir', dest='PLUGINS_DIR')
-    p.add_argument('--notify', dest='NOTIFY_TARGETS', action='append', help='comma list or repeat')
-    p.add_argument('--notify-config', dest='NOTIFY_CONFIG')
-    # Opsional lokasi & disable output
-    p.add_argument('--summary-dir', dest='SUMMARY_DIR')
-    p.add_argument('--checksum-dir', dest='CHECKSUM_DIR')
-    p.add_argument('--no-checksum', dest='MAKE_CHECKSUM', action='store_false', help='Disable SHA256 files')
-    p.add_argument('--no-summary',  dest='MAKE_SUMMARY',  action='store_false', help='Disable summary JSON')
+
+    # === Grup: Arsip & Enkripsi ===
+    g1 = p.add_argument_group("Arsip & Enkripsi")
+    g1.add_argument('--format', dest='ARCHIVE_FORMAT',
+                    choices=['zip','tar','tgz','7z','tar.gz'],
+                    help='Format arsip output')
+    g1.add_argument('--name', dest='OUT_NAME', help='Nama file (tanpa ekstensi)')
+    g1.add_argument('--zip-aes', dest='ZIP_AES', action='store_true',
+                    help='Buat ZIP AES-256 via 7z (lebih aman dari ZipCrypto)')
+    g1.add_argument('--zip-encrypt', dest='ZIP_ENCRYPT', action='store_true',
+                    help='ZIP interaktif (prompt password) memakai ZipCrypto')
+    g1.add_argument('--password', dest='ZIP_PASSWORD',
+                    help='Password non-interaktif untuk ZIP/7z (hati-hati ekspos)')  # noqa
+    g1.add_argument('--gpg-encrypt', dest='USE_GPG', action='store_true',
+                    help='Enkripsi GPG (AES256) untuk tar/tgz → output .gpg')
+
+    # === Grup: Split & Exclude ===
+    g2 = p.add_argument_group("Split & Exclude")
+    g2.add_argument('--split', dest='SPLIT_SIZE',
+                    help="Pecah file hasil per ukuran, contoh: 200m, 1g")
+    g2.add_argument('--keep-after-split', dest='KEEP_AFTER_SPLIT', action='store_true',
+                    help='Setelah split, simpan juga file utuh')
+    g2.add_argument('--rm-after-split', dest='RM_AFTER_SPLIT', action='store_true',
+                    help='Setelah split, hapus file utuh')
+    g2.add_argument('--exclude', dest='EXCLUDES', action='append',
+                    help='Pola pengecualian; bisa diulang atau pakai koma')
+    g2.add_argument('--exclude-from', dest='EXCLUDE_FILE',
+                    help='File daftar pola exclude (satu pola per baris)')
+
+    # === Grup: Upload ===
+    g3 = p.add_argument_group("Upload")
+    g3.add_argument('--upload', dest='UPLOAD_TARGET',
+                    help='Target upload: gdrive:Backups | s3://bucket/path | sftp://user@host:/dir | ftp://user@host:/dir')
+    g3.add_argument('--upload-tool', dest='UPLOAD_TOOL',
+                    choices=['auto','rclone','aws','lftp','scp'],
+                    help='Pilih tool upload (auto mendeteksi terbaik)')
+    g3.add_argument('--after-upload-rm', dest='AFTER_UPLOAD_RM', action='store_true',
+                    help='Hapus file lokal setelah upload sukses')
+    g3.add_argument('--upload-retry', dest='UPLOAD_RETRY',
+                    help='Jumlah retry upload')
+
+    # === Grup: Mode & Konfigurasi ===
+    g4 = p.add_argument_group("Mode & Konfigurasi")
+    g4.add_argument('-s','--start', dest='START_DIR',
+                    help='Direktori awal UI pemilihan (untuk mode interaktif)')
+    g4.add_argument('--dest', dest='DEST_DIR',
+                    help='Direktori output arsip')
+    g4.add_argument('--no-ui', dest='NO_UI', action='store_true',
+                    help='Mode headless (tanpa UI) — gunakan bersama --source')
+    g4.add_argument('--source', dest='SOURCES', action='append',
+                    help='Path sumber backup; dapat diulang')
+    g4.add_argument('--config', dest='CONFIG_FILE',
+                    help='File konfigurasi key=value (override CLI)')
+    g4.add_argument('--dry-run', dest='DRY_RUN', action='store_true',
+                    help='Simulasi: echo perintah tanpa membuat/mengupload')
+
+    # === Grup: Notifikasi & Plugin ===
+    g5 = p.add_argument_group("Notifikasi & Plugin")
+    g5.add_argument('--notify', dest='NOTIFY_TARGETS', action='append',
+                    help='telegram,email atau nama plugin; bisa koma/ulang argumen')
+    g5.add_argument('--notify-config', dest='NOTIFY_CONFIG',
+                    help='String konfigurasi diteruskan ke plugin via ENV NOTIFY_CONFIG')
+    g5.add_argument('--plugins-dir', dest='PLUGINS_DIR',
+                    help='Direktori plugin eksternal (default: ./plugins.d)')
+
+    # === Grup: Output Tambahan ===
+    g6 = p.add_argument_group("Output Tambahan (ringkasan & checksum)")
+    g6.add_argument('--summary-dir', dest='SUMMARY_DIR',
+                    help='Direktori untuk file ringkasan .summary.json')
+    g6.add_argument('--checksum-dir', dest='CHECKSUM_DIR',
+                    help='Direktori untuk file checksum .sha256')
+    # aktif/nonaktif (biar konsisten: ada ON dan OFF)
+    g6.add_argument('--summary', dest='MAKE_SUMMARY', action='store_true',
+                    help='Aktifkan pembuatan ringkasan .summary.json')
+    g6.add_argument('--no-summary', dest='MAKE_SUMMARY', action='store_false',
+                    help='Nonaktifkan ringkasan .summary.json')
+    g6.add_argument('--checksum', dest='MAKE_CHECKSUM', action='store_true',
+                    help='Aktifkan pembuatan file .sha256')
+    g6.add_argument('--no-checksum', dest='MAKE_CHECKSUM', action='store_false',
+                    help='Nonaktifkan file .sha256')
+    # default MAKE_* agar terlihat di help:
+    p.set_defaults(MAKE_SUMMARY=0, MAKE_CHECKSUM=0)
+
     return p
 
 def apply_args(args: argparse.Namespace) -> None:
